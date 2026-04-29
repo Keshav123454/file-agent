@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-docx
+PyPDF2
+python-multipart
+pydantic
+langchain-text-splitters
+motor
+python-dotenv
+pymongo
+certifi
