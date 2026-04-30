@@ -3,7 +3,7 @@ from .mongodb import get_db
 
 
 async def save_file_to_mongo(file, extracted_text: str):
-    db = get_db()  # 🔥 get fresh reference
+    db = await get_db()  # 🔥 get fresh reference
     try:
         contents = await file.read()
         file_size = len(contents)
@@ -23,7 +23,7 @@ async def save_file_to_mongo(file, extracted_text: str):
 
 async def get_all_files():
     
-    db = get_db()
+    db = await get_db()
     try:
         print("Fetching all files from MongoDB...")
         files = []
@@ -38,7 +38,7 @@ async def get_all_files():
 
 async def get_file_by_id(file_id: str):
     from bson import ObjectId
-    db = get_db()
+    db = await get_db()
     try:
         print(f"Fetching file with ID: {file_id}")
         doc = await db.files.find_one({"_id": ObjectId(file_id)})

@@ -1,13 +1,13 @@
 # app/db/mongodb.py
 
 from motor.motor_asyncio import AsyncIOMotorClient
-from .config import MONGO_URI, DB_NAME
+from config import MONGO_URI, DB_NAME
 import certifi
 
 client: AsyncIOMotorClient = None
 
 
-def get_db():
+async def get_db():
     try:
         return client[DB_NAME]
     except Exception as e:

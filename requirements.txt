@@ -9,3 +9,9 @@ motor
 python-dotenv
 pymongo
 certifi
+langchain 
+faiss-cpu
+google-genai
+numpy
+sentence-transformers
+pinecone
