@@ -63,3 +63,9 @@ async def get_file(file_id: str):
 async def embed_file(file_id: str):
     embeddings = await upsert_document(file_id)
     return {"embeddings": embeddings}
+
+@app.get("/search")
+async def search(query: str, file_id: str):
+    from ai.embedding import search_similar
+    results = await search_similar(file_id, query)
+    return {"results": results}
