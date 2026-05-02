@@ -1,4 +1,4 @@
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 
 def get_rag_prompt():
     """
@@ -34,3 +34,15 @@ Supporting Text:
 
     return prompt
 
+
+def get_chat_prompt(question):
+    """
+    Returns a LangChain PromptTemplate for general chat
+    """
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful AI assistant."),
+        ("human", "{question}")
+    ])
+
+    return prompt

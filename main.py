@@ -75,3 +75,8 @@ async def search_vec(query: str, file_id: str):
 async def get_llm_response(query: str, file_id: str):
     response = await get_response(query, file_id)
     return {"response": response}
+
+@app.get("/chat")
+async def chat(query: str):
+    response = await get_response(query)
+    return {"response": response}
