@@ -83,12 +83,8 @@ async def upsert_document(file_id):
     }
 
 
-async def search_similar(file_id: str, query: str, top_k: int = 2):
+async def search_similar(file_id: str, query: str, top_k: int = 3):
     from db.pincone_db import _pincone_index
-    stats = _pincone_index.describe_index_stats()
-    print("1"*50)
-    print(stats)
-    print("2"*50)
 
     query_embedding = (await embed_chunks([query]))[0]
 
@@ -103,7 +99,7 @@ async def search_similar(file_id: str, query: str, top_k: int = 2):
         namespace=file_id,   # 🔥 VERY IMPORTANT
         include_metadata=True
     )
-
+    print("Pinecone search results:", results)
     # Step 3: extract results
     matches = []
     for match in results.get("matches", []):

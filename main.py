@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.concurrency import asynccontextmanager
 from ai.models import initialize_sentence_splitter_model
+from ai.pipeline import get_response
 from db.mongodb import close_mongo_connection, connect_to_mongo
 from db.utils import save_file_to_mongo
 from file_reader import extract_text_from_file
@@ -65,7 +66,12 @@ async def embed_file(file_id: str):
     return {"embeddings": embeddings}
 
 @app.get("/search")
-async def search(query: str, file_id: str):
+async def search_vec(query: str, file_id: str):
     from ai.embedding import search_similar
     results = await search_similar(file_id, query)
     return {"results": results}
+
+@app.get("/query")
+async def get_llm_response(query: str, file_id: str):
+    response = await get_response(query, file_id)
+    return {"response": response}

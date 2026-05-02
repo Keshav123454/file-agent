@@ -10,6 +10,8 @@ python-dotenv
 pymongo
 certifi
 langchain 
+langchain-core
+langchain-google-genai
 faiss-cpu
 google-genai
 numpy

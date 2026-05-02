@@ -1,5 +1,7 @@
 from google import genai
 from sentence_transformers import SentenceTransformer
+from langchain_google_genai import ChatGoogleGenerativeAI
+
 
 _embd_model = None
 _gemini_client = None
@@ -34,3 +36,11 @@ async def gemini_embed_model(chunk):
         contents=chunk
     )
     return embed_model.embeddings
+
+
+def get_gemini_llm():
+    llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash-lite",   # fast & cheap
+            temperature=0.2             # good for factual answers
+        )
+    return llm
