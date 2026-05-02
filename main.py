@@ -1,12 +1,13 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.concurrency import asynccontextmanager
+from langchain_core.messages import HumanMessage
 from ai.models import initialize_sentence_splitter_model
-from ai.pipeline import get_response
 from db.mongodb import close_mongo_connection, connect_to_mongo
 from db.utils import save_file_to_mongo
 from file_reader import extract_text_from_file
 from ai.embedding import upsert_document
 from db.pincone_db import initialize_pinecone
+from ai.langGraph_buileder import agent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -71,12 +72,18 @@ async def search_vec(query: str, file_id: str):
     results = await search_similar(file_id, query)
     return {"results": results}
 
-@app.get("/query")
-async def get_llm_response(query: str, file_id: str):
-    response = await get_response(query, file_id)
-    return {"response": response}
-
 @app.get("/chat")
-async def chat(query: str):
-    response = await get_response(query)
-    return {"response": response}
+async def get_llm_response(query: str, file_id: str = None):
+    state = {
+        "messages": [HumanMessage(content=query)],
+        "llm_calls": 0,
+        "file_id": file_id
+    }
+
+    result = await agent.ainvoke(state)
+
+    return {
+        "response": result["messages"][-1].content,
+        "llm_calls": result["llm_calls"]
+    }
+
