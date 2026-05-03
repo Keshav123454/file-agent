@@ -245,8 +245,14 @@ async def get_file(file_id: str):
         raise HTTPException(status_code=500, detail="Error retrieving file")
 
 # ============ DELETE FILE ============
+
 @app.delete("/files/{file_id}")
 async def delete_file(file_id: str):
+    if file_id:
+        is_valid_id = await validate_file_id(file_id)
+        if not is_valid_id:
+            raise HTTPException(status_code=400, detail="Invalid file ID format")
+
     result = await delete_file_by_id(file_id)
 
     if result["message"] == "File not found":
@@ -384,7 +390,6 @@ async def get_llm_response(
             raise HTTPException(status_code=400, detail="Query cannot be empty")
 
         # Validate file ID if provided
-        print(query, file_id, "@"*100)
         if file_id:
             is_valid_id = await validate_file_id(file_id)
             if not is_valid_id:
