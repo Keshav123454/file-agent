@@ -52,3 +52,25 @@ async def get_file_by_id(file_id: str):
     except Exception as e:
         print(f"Error fetching file by ID: {e}")
         raise
+
+
+async def delete_file_by_id(file_id: str):
+    from bson import ObjectId, errors
+    db = await get_db()
+
+    try:
+        if not ObjectId.is_valid(file_id):
+            return {"message": "Invalid file ID"}
+
+        result = await db.files.delete_one({"_id": ObjectId(file_id)})
+
+        if result.deleted_count == 1:
+            return {"message": "File deleted successfully"}
+        else:
+            return {"message": "File not found"}
+
+    except errors.InvalidId:
+        return {"message": "Invalid ObjectId format"}
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+        raise
