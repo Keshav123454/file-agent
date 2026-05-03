@@ -1,5 +1,3 @@
-# app/db/mongodb.py
-
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import MONGO_URI, DB_NAME
 import certifi
@@ -28,7 +26,6 @@ async def connect_to_mongo():
 
 async def close_mongo_connection():
     try:
-        global client
         client.close()
         print("❌ MongoDB closed")
     except Exception as e:
