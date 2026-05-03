@@ -246,6 +246,8 @@ async def get_file(file_id: str):
 
 # ============ DELETE FILE ============
 
+from fastapi import HTTPException
+
 @app.delete("/files/{file_id}")
 async def delete_file(file_id: str):
     if file_id:
@@ -255,7 +257,14 @@ async def delete_file(file_id: str):
 
     result = await delete_file_by_id(file_id)
 
-    if result["message"] == "File not found":
+    # ✅ Handle None (unexpected error case)
+    if result is None:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    # ✅ Safe access
+    message = result.get("message")
+
+    if message == "File not found":
         raise HTTPException(status_code=404, detail="File not found")
 
     return result
