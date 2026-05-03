@@ -23,6 +23,8 @@ from ai.langGraph_buileder import agent
 
 # Utils
 from utils import validate_file, validate_file_id
+from fastapi.middleware.cors import CORSMiddleware
+from db.utils import delete_file_by_id
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -73,6 +75,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ============ HEALTH CHECK ============
 
@@ -235,6 +244,30 @@ async def get_file(file_id: str):
         logger.error(f"Error in /files/{{file_id}} endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error retrieving file")
 
+# ============ DELETE FILE ============
+
+from fastapi import HTTPException
+
+@app.delete("/files/{file_id}")
+async def delete_file(file_id: str):
+    if file_id:
+        is_valid_id = await validate_file_id(file_id)
+        if not is_valid_id:
+            raise HTTPException(status_code=400, detail="Invalid file ID format")
+
+    result = await delete_file_by_id(file_id)
+
+    # ✅ Handle None (unexpected error case)
+    if result is None:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    # ✅ Safe access
+    message = result.get("message")
+
+    if message == "File not found":
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return result
 
 # ============ EMBEDDING & VECTOR SEARCH ============
 
@@ -326,12 +359,23 @@ async def search_vec(query: str, file_id: str):
 
 # ============ LLM CHAT & RAG ============
 
-@app.get("/chat")
+
+
+from pydantic import BaseModel
+from typing import Optional
+
+class ChatRequest(BaseModel):
+    query: str
+    file_id: Optional[str] = None
+
+
+@app.post("/chat")
 async def get_llm_response(
-    query: str,
-    file_id: str = None,
+    request: ChatRequest,
     models: ModelManager = Depends(get_model_manager)
 ):
+    query = request.query
+    file_id = request.file_id
     """
     Chat with the LLM using RAG (Retrieval-Augmented Generation).
     
