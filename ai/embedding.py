@@ -111,3 +111,5 @@ async def search_similar(file_id: str, query: str, top_k: int = 3):
 
     return matches
 
+def test_function():
+    print("This is a test function in embedding.py")
