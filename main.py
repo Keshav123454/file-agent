@@ -98,7 +98,7 @@ async def health_check(models: ModelManager = Depends(get_model_manager)):
         emb_model = await models.get_embedding_model()
         gemini_client = await models.get_gemini_client()
         gemini_llm = await models.get_gemini_llm()
-        suggest_textion_model = await models.get_suggestion_model  # Assuming this is an async property
+        suggest_textion_model = await models.get_suggestion_model()
         return {
             "status": "healthy",
             "services": {
