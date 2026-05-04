@@ -9,7 +9,7 @@ from typing import Optional
 from google import genai
 from sentence_transformers import SentenceTransformer
 from langchain_google_genai import ChatGoogleGenerativeAI
-
+from ai.suggestion import SuggestionModel  
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +28,7 @@ class ModelManager:
         self._embd_model: Optional[SentenceTransformer] = None
         self._gemini_client: Optional[genai.Client] = None
         self._gemini_llm: Optional[ChatGoogleGenerativeAI] = None
+        self._suggestion_model: Optional[SuggestionModel] = None
         self._lock = asyncio.Lock()
         self._all_initialized = False
     
@@ -102,6 +103,8 @@ class ModelManager:
         
         return self._gemini_llm
     
+    
+    
     async def initialize_all(self) -> None:
         """
         Initialize all models in parallel for faster startup.
@@ -119,8 +122,9 @@ class ModelManager:
             await asyncio.gather(
                 self.get_embedding_model(),
                 self.get_gemini_client(),
-                self.get_gemini_llm()
-            )
+                self.get_gemini_llm(),
+                self.get_suggestion_model()
+                )
             
             self._all_initialized = True
             logger.info("✅ All AI models initialized successfully")
@@ -129,6 +133,19 @@ class ModelManager:
             logger.error(f"❌ Error initializing models: {e}", exc_info=True)
             raise
 
+    async def get_suggestion_model(self) -> SuggestionModel:
+        if self._suggestion_model is None:
+            async with self._lock:
+                if self._suggestion_model is None:
+                    logger.info("🔄 Loading suggestion model...")
+                    loop = asyncio.get_event_loop()
+                    self._suggestion_model = await loop.run_in_executor(
+                        None,
+                        lambda: SuggestionModel()
+                    )
+                    logger.info("✅ Suggestion model loaded")
+
+        return self._suggestion_model
 
 # Global instance
 _model_manager = ModelManager()
@@ -220,3 +237,6 @@ async def get_gemini_llm() -> ChatGoogleGenerativeAI:
         ChatGoogleGenerativeAI: The Gemini LLM instance
     """
     return await _model_manager.get_gemini_llm()
+
+async def get_suggestion_model() -> SuggestionModel:
+    return await _model_manager.get_suggestion_model()

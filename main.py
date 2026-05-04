@@ -8,6 +8,7 @@ from fastapi.concurrency import asynccontextmanager
 from langchain_core.messages import HumanMessage
 
 # Database imports
+from ai import models
 from db.mongodb import close_mongo_connection, connect_to_mongo
 from db.utils import save_file_to_mongo, get_all_files, get_file_by_id
 from db.pincone_db import initialize_pinecone
@@ -17,7 +18,7 @@ from file_reader import extract_text_from_file
 from ai.text_splitter import split_document
 
 # AI/ML imports
-from ai.models import initialize_all_models, get_model_manager, ModelManager
+from ai.models import initialize_all_models, get_model_manager, ModelManager, get_suggestion_model
 from ai.embedding import upsert_document, search_similar
 from ai.langGraph_buileder import agent
 
@@ -97,7 +98,7 @@ async def health_check(models: ModelManager = Depends(get_model_manager)):
         emb_model = await models.get_embedding_model()
         gemini_client = await models.get_gemini_client()
         gemini_llm = await models.get_gemini_llm()
-        
+        suggest_textion_model = await models.get_suggestion_model  # Assuming this is an async property
         return {
             "status": "healthy",
             "services": {
@@ -434,6 +435,26 @@ async def get_llm_response(
         logger.error(f"Error in /chat endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error processing chat request")
 
+
+# ============ Suggestion Text ===========
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+
+
+
+class SuggestRequest(BaseModel):
+    text: str
+
+
+@app.post("/suggest")
+async def suggest(
+    req: SuggestRequest,
+    models: ModelManager = Depends(get_suggestion_model)
+
+):
+    result = await models.generate(req.text)
+    return {"suggestion": result}
 
 # ============ ERROR HANDLERS ============
 

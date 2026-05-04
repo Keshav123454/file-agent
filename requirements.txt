@@ -18,3 +18,5 @@ numpy
 sentence-transformers
 pinecone
 langgraph
+transformers
+torch
