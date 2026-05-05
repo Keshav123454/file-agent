@@ -4,7 +4,7 @@ Handles both general chat and RAG-based responses with proper async initializati
 """
 
 from langgraph.graph import StateGraph, START, END
-from langchain.messages import AnyMessage, AIMessage
+from langchain_core.messages import AnyMessage, AIMessage
 from typing_extensions import TypedDict, Annotated
 import operator
 import logging

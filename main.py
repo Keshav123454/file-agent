@@ -104,7 +104,8 @@ async def health_check(models: ModelManager = Depends(get_model_manager)):
             "services": {
                 "embedding_model": "loaded",
                 "gemini_client": "initialized",
-                "gemini_llm": "initialized"
+                "gemini_llm": "initialized",
+                "suggest_textion_model": "loaded"
             }
         }
     except Exception as e:
@@ -362,7 +363,7 @@ async def search_vec(query: str, file_id: str):
 
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 class ChatRequest(BaseModel):
@@ -438,14 +439,11 @@ async def get_llm_response(
 
 # ============ Suggestion Text ===========
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 
 
 
 class SuggestRequest(BaseModel):
-    text: str
-
+    text: str = Field(min_length=1, max_length=2000)
 
 @app.post("/suggest")
 async def suggest(
