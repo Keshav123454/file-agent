@@ -7,9 +7,8 @@ _pincone_index = None
 async def initialize_pinecone():
 
     index_name = "file-chunks-index"
-
-    # Create index (only once)
-    if not pc.has_index(index_name):
+    existing_indexes = [index.name for index in pc.list_indexes()]
+    if index_name not in existing_indexes:
         pc.create_index(
             name=index_name,
             dimension=384,   # 🔥 MiniLM output size
