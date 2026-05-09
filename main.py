@@ -2,7 +2,9 @@
 FastAPI application for file processing with RAG (Retrieval-Augmented Generation)
 """
 
+from collections import defaultdict
 import logging
+import uuid
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.concurrency import asynccontextmanager
 from langchain_core.messages import HumanMessage
@@ -15,7 +17,6 @@ from db.pincone_db import initialize_pinecone
 
 # File processing imports
 from file_reader import extract_text_from_file
-from ai.text_splitter import split_document
 
 # AI/ML imports
 from ai.models import initialize_all_models, get_model_manager, ModelManager, get_suggestion_model
@@ -23,7 +24,7 @@ from ai.embedding import upsert_document, search_similar
 from ai.langGraph_buileder import agent
 
 # Utils
-from utils import validate_file, validate_file_id
+from utils import get_chunker, validate_file, validate_file_id
 from fastapi.middleware.cors import CORSMiddleware
 from db.utils import delete_file_by_id
 
@@ -157,9 +158,11 @@ async def upload_file(file: UploadFile = File(...)):
         
         if not text or text.startswith("❌"):
             raise HTTPException(status_code=400, detail=text)
-
+        
         # Split document into chunks
-        chunks = await split_document(text)
+        chunker = await get_chunker(text)
+
+        chunks = await chunker.chunk(text)
         
         if not chunks:
             raise HTTPException(status_code=400, detail="No content extracted from file")
@@ -369,6 +372,7 @@ from typing import Optional
 class ChatRequest(BaseModel):
     query: str
     file_id: Optional[str] = None
+    thread_id: str 
 
 
 @app.post("/chat")
@@ -412,23 +416,41 @@ async def get_llm_response(
                 raise HTTPException(status_code=404, detail="File not found")
 
         # Prepare state for agent
-        state = {
-            "messages": [HumanMessage(content=query)],
-            "llm_calls": 0,
-            "file_id": file_id
-        }
+        from collections import defaultdict
 
+        conversation_memory = defaultdict(list)
+        
+        history = conversation_memory[request.thread_id]
+
+        history.append(
+            HumanMessage(content=query)
+        )
+
+        state = {
+            "messages": history,
+            "llm_calls": 0,
+            "file_id": file_id,
+            "thread_id": request.thread_id,
+            "is_valid_response": True
+        }
+        
         # Get LLM response
         result = await agent.ainvoke(state)
-
         logger.info(f"✅ Chat response generated (LLM calls: {result['llm_calls']})")
-
+        conversation_memory[
+                request.thread_id
+        ].append(
+            result["messages"][-1]
+        )
+    
         return {
             "query": query,
             "response": result["messages"][-1].content,
             "llm_calls": result["llm_calls"],
-            "mode": "RAG" if file_id else "General"
+            "mode": "RAG" if file_id else "General",
+            "conversation_mem": conversation_memory[request.thread_id]
         }
+    
 
     except HTTPException:
         raise

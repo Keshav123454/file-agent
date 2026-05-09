@@ -1,3 +1,4 @@
+from pinecone.core.openapi.shared.exceptions import PineconeApiException
 from .models import gemini_embed_model, embed_chunks
 from db.utils import get_file_by_id
 import numpy as np
@@ -6,13 +7,29 @@ import numpy as np
 from .models import embed_chunks
 from db.utils import get_file_by_id
 
-
 async def get_chunks(file_id):
     file = await get_file_by_id(file_id)
     if not file:
         raise ValueError("File not found")
-    chunks = file['extracted_text']
-    return chunks
+
+    chunks = file["extracted_text"]
+    # LongRAG structure
+    if isinstance(chunks, list) and "children" in chunks[0]:
+
+        all_child_chunks = []
+        parent_ids = []
+
+        for item in chunks:
+            parent_id = item.get("parent_id")
+
+            for child in item["children"]:
+                all_child_chunks.append(child)
+                parent_ids.append(parent_id)
+
+        return all_child_chunks, parent_ids
+
+    return chunks, None
+
 
 async def embed_chunks_gemini(chunks):
     embeddings = []
@@ -41,26 +58,63 @@ async def generate_hybrid_embeddings(file_id=None):
 
 def delete_vec(file_id):
     from db.pincone_db import _pincone_index
+    try:
+        _pincone_index.delete(
+            namespace=file_id,
+            delete_all=True
+        )
+    except PineconeApiException as e:
 
-    _pincone_index.delete(
-        namespace=file_id,
-        delete_all=True
-    )
+        return {
+            "success": False,
+            "message": str(e)
+        }
+
+    except Exception as e:
+
+        return {
+            "success": False,
+            "message": f"Unexpected error: {str(e)}"
+        }
+
 
 def store_vec(vectors, file_id):
     from db.pincone_db import _pincone_index
+    batch_size = 100
+    try:
+        for i in range(0, len(vectors), batch_size):
 
-    _pincone_index.upsert(
-        namespace=file_id,
-        vectors=vectors   
-    )
+            batch = vectors[i:i + batch_size]
+
+            _pincone_index.upsert(
+                vectors=batch,
+                namespace=file_id,
+            )
+
+        return {
+            "success": True,
+            "message": "Vectors stored successfully"
+        }
+
+    except PineconeApiException as e:
+
+        return {
+            "success": False,
+            "message": str(e)
+        }
+
+    except Exception as e:
+
+        return {
+            "success": False,
+            "message": f"Unexpected error: {str(e)}"
+        }
+
 
 async def upsert_document(file_id):
 
-    chunks = await get_chunks(file_id)
-
+    chunks, parent_ids = await get_chunks(file_id)
     chunk_embeddings = await embed_chunks(chunks)
-
     vectors = []
     for i, (chunk, emb) in enumerate(zip(chunks, chunk_embeddings)):
 
@@ -72,14 +126,16 @@ async def upsert_document(file_id):
             "values": emb,
             "metadata": {
                 "text": chunk,
+                "parent_id": parent_ids[i] if parent_ids else "",
                 "file_id": file_id
             }
         })
-    store_vec(vectors, file_id)
+    pinecone_res = store_vec(vectors, file_id)
 
     return {
         "file_id": file_id,
-        "num_chunks": len(chunks)
+        "num_chunks": len(chunks),
+        "response": pinecone_res   
     }
 
 
@@ -99,14 +155,14 @@ async def search_similar(file_id: str, query: str, top_k: int = 3):
         namespace=file_id,   # 🔥 VERY IMPORTANT
         include_metadata=True
     )
-    print("Pinecone search results:", results)
     # Step 3: extract results
     matches = []
     for match in results.get("matches", []):
         matches.append({
             "score": match["score"],
             "text": match["metadata"].get("text"),
-            "file_id": match["metadata"].get("file_id")
+            "file_id": match["metadata"].get("file_id"),
+            "parent_id": match["metadata"].get("parent_id")
         })
 
     return matches
