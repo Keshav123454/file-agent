@@ -3,11 +3,13 @@ Validation utilities for the File Agent API.
 Provides input validation, security checks, and data sanitization.
 """
 
+import sys
 import logging
 from pathlib import Path
 from fastapi import UploadFile
 from bson import ObjectId
-
+from ai.text_splitter import BaseChunker, RecursiveChunker, LongRAGChunker
+    
 logger = logging.getLogger(__name__)
 
 # Configuration
@@ -362,3 +364,12 @@ async def validate_batch_operation(items: list, max_size: int = 100) -> bool:
     except Exception as e:
         logger.error(f"Error in batch validation: {e}")
         return False
+
+# ============ CHUNKER SELECTION ============
+
+async def get_chunker(text: str) -> BaseChunker:
+    text_size = sys.getsizeof(text)
+    if text_size < 60000:
+        return RecursiveChunker()
+
+    return LongRAGChunker()
