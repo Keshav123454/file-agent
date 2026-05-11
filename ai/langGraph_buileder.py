@@ -47,6 +47,7 @@ class MessagesState(TypedDict):
     file_id: str | None
     is_valid_response: bool 
     thread_id: str
+    token_usage: dict | None
 
 
 @traceable(name="handle_general_chat")
@@ -67,7 +68,7 @@ async def handle_general_chat(llm, query, file_id=None, llm_calls=0):
     """
     context = ""
     if not file_id:
-        chain = get_chat_prompt(query) | llm | StrOutputParser()
+        chain = get_chat_prompt(query) | llm
     else:
         matches = await search_similar(file_id, query)
         for m in matches:
@@ -77,7 +78,7 @@ async def handle_general_chat(llm, query, file_id=None, llm_calls=0):
                 if m.get("text") and m["text"].strip()
             ])
         
-        chain = get_rag_prompt() | llm | StrOutputParser()
+        chain = get_rag_prompt() | llm 
 
 
     response = await chain.ainvoke({
@@ -134,9 +135,10 @@ async def get_response(state: MessagesState):
             )
         return {
             "messages": [
-                AIMessage(content=content)
+                AIMessage(content=content.content)
             ],
-            "llm_calls": state["llm_calls"] + 1
+            "llm_calls": state["llm_calls"] + 1,
+            "token_usage": content.usage_metadata
         }
     
     except Exception:

@@ -20,3 +20,4 @@ pinecone==5.0.0
 langgraph==0.2.39
 transformers==4.46.0
 torch==2.5.1
+langcache

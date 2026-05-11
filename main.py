@@ -11,8 +11,9 @@ from langchain_core.messages import HumanMessage
 
 # Database imports
 from ai import models
+from db.langCach_vec import LangCacheClient
 from db.mongodb import close_mongo_connection, connect_to_mongo
-from db.utils import save_file_to_mongo, get_all_files, get_file_by_id
+from db.utils import save_file_to_mongo, get_all_files, get_file_by_id, search_data
 from db.pincone_db import initialize_pinecone
 
 # File processing imports
@@ -415,6 +416,17 @@ async def get_llm_response(
             if not file:
                 raise HTTPException(status_code=404, detail="File not found")
 
+        search_cache_results = LangCacheClient().search_entry(prompt=query, file_id=file_id)
+        search_cache_results = await search_data(search_cache_results)
+        if search_cache_results and search_cache_results["response"]!="Something went wrong.":
+            logger.info("✅ Cache hit for query")
+            return {
+                "query": search_cache_results["query"],
+                "response": search_cache_results["response"],
+                "llm_calls": 0,
+                "mode": "Cache",
+                "conversation_mem": []
+            }
         # Prepare state for agent
         from collections import defaultdict
 
@@ -431,7 +443,8 @@ async def get_llm_response(
             "llm_calls": 0,
             "file_id": file_id,
             "thread_id": request.thread_id,
-            "is_valid_response": True
+            "is_valid_response": True,
+            "token_usage": None
         }
         
         # Get LLM response
@@ -442,13 +455,16 @@ async def get_llm_response(
         ].append(
             result["messages"][-1]
         )
-    
+        cache_save = LangCacheClient().save_entry(prompt=query, response=result["messages"][-1].content, file_id=file_id)
         return {
             "query": query,
             "response": result["messages"][-1].content,
             "llm_calls": result["llm_calls"],
             "mode": "RAG" if file_id else "General",
-            "conversation_mem": conversation_memory[request.thread_id]
+            # "conversation_mem": conversation_memory[request.thread_id],
+            "conversation_mem": [],
+            "cache_save": cache_save,
+            "token_usage": result.get("token_usage")
         }
     
 
