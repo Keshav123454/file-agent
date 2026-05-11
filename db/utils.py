@@ -1,3 +1,4 @@
+from asyncio.log import logger
 from datetime import datetime
 from .mongodb import get_db
 
@@ -69,3 +70,36 @@ async def delete_file_by_id(file_id: str):
     except Exception as e:
         print(f"Error deleting file: {e}")
         return {"message": "Error deleting file"}  # ✅ NEVER return None
+    
+
+
+async def search_data(search_cache_results):
+    try:
+
+        if (
+            search_cache_results
+            and hasattr(search_cache_results, "data")
+            and search_cache_results.data
+        ):
+
+            first_result = search_cache_results.data[0]
+
+            cached_response = {
+                "id": first_result.id,
+                "query": first_result.prompt,
+                "response": first_result.response,
+                "attributes": first_result.attributes,
+                "similarity": first_result.similarity,
+                "search_strategy": str(first_result.search_strategy)
+            }
+
+        else:
+            cached_response = None
+        
+        return cached_response
+
+    except Exception as e:
+        logger.exception(f"Error while processing cache results: {e}")
+        cached_response = None
+
+    return cached_response

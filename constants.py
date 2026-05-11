@@ -1,4 +1,4 @@
-MAX_RETRIES = 3
+MAX_RETRIES = 1
 
 BAD_RESPONSES = [
     "not found",
