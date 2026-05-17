@@ -2,10 +2,11 @@ from pinecone.core.openapi.shared.exceptions import PineconeApiException
 from .models import gemini_embed_model, embed_chunks
 from db.utils import get_file_by_id
 import numpy as np
-
+import asyncio
 
 from .models import embed_chunks
 from db.utils import get_file_by_id
+
 
 async def get_chunks(file_id):
     file = await get_file_by_id(file_id)
@@ -78,6 +79,51 @@ def delete_vec(file_id):
         }
 
 
+
+# FIX 1: Turn this into an async function
+async def store_vec_grpc(vectors, file_id):
+    from db.pincone_db import _pincone_index
+
+    batch_size = 100
+    futures = []
+    
+    try:
+
+        for i in range(0, len(vectors), batch_size):
+            batch = vectors[i:i + batch_size]
+            
+            # FIX 2: Create concurrent tasks using the async gRPC index client
+            # (Do NOT await them individually inside the loop)
+            task = _pincone_index.upsert(
+                vectors=batch,
+                namespace=file_id,
+                async_req=True
+            )
+            futures.append(task)
+            
+        # FIX 3: Fire all gRPC requests concurrently and await their completion
+        for future in futures:
+            future.result()
+
+        return {
+            "success": True,
+            "message": f"Stored {len(vectors)} vectors successfully across {len(futures)} batches."
+        }
+    
+    except PineconeApiException as e:
+
+        return {
+            "success": False,
+            "message": str(e)
+        }
+
+    except Exception as e:
+
+        return {
+            "success": False,
+            "message": f"Unexpected error: {str(e)}"
+        }
+
 def store_vec(vectors, file_id):
     from db.pincone_db import _pincone_index
     batch_size = 100
@@ -109,6 +155,34 @@ def store_vec(vectors, file_id):
             "success": False,
             "message": f"Unexpected error: {str(e)}"
         }
+
+async def upsert_document_grpc(file_id):
+    chunks, parent_ids = await get_chunks(file_id)
+    chunk_embeddings = await embed_chunks(chunks)
+    
+    vectors = []
+    for i, (chunk, emb) in enumerate(zip(chunks, chunk_embeddings)):
+        if not isinstance(emb, (list, tuple)):
+            raise ValueError(f"Embedding is not a vector: {emb}")
+
+        vectors.append({
+            "id": f"{file_id}_{i}",
+            "values": emb,
+            "metadata": {
+                "text": chunk,
+                "parent_id": parent_ids[i] if parent_ids else "",
+                "file_id": file_id
+            }
+        })
+        
+    # FIX 4: Add the await keyword here to execute asynchronously
+    pinecone_res = await store_vec_grpc(vectors, file_id)
+
+    return {
+        "file_id": file_id,
+        "num_chunks": len(chunks),
+        "response": pinecone_res   
+    }
 
 
 async def upsert_document(file_id):
