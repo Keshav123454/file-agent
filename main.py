@@ -2,6 +2,7 @@
 FastAPI application for file processing with RAG (Retrieval-Augmented Generation)
 """
 
+import asyncio
 from collections import defaultdict
 import logging
 import uuid
@@ -21,7 +22,7 @@ from file_reader import extract_text_from_file
 
 # AI/ML imports
 from ai.models import initialize_all_models, get_model_manager, ModelManager, get_suggestion_model
-from ai.embedding import upsert_document, search_similar
+from ai.embedding import search_similar, upsert_document_grpc
 from ai.langGraph_buileder import agent
 
 # Utils
@@ -43,13 +44,13 @@ async def lifespan(app: FastAPI):
     try:
         # 🔥 STARTUP
         logger.info("🚀 Starting application initialization...")
-        
         # Initialize database connections
-        await connect_to_mongo()
-        logger.info("✅ MongoDB connected")
         
-        await initialize_pinecone()
+        initialize_pinecone()
         logger.info("✅ Pinecone initialized")
+
+        await connect_to_mongo()
+        logger.info("✅ MongoDB connected")        
         
         # Initialize all AI models (async, non-blocking)
         await initialize_all_models()
@@ -304,7 +305,7 @@ async def embed_file(file_id: str, models: ModelManager = Depends(get_model_mana
             raise HTTPException(status_code=404, detail="File not found")
 
         # Generate embeddings
-        embeddings = await upsert_document(file_id)
+        embeddings = await upsert_document_grpc(file_id)
         
         logger.info(f"✅ Embeddings created for file: {file_id}")
         return embeddings
