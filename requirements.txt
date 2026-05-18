@@ -13,7 +13,7 @@ langchain==0.3.7
 google-genai==1.75.0
 langchain-core==0.3.18
 langchain-google-genai==2.0.1
-faiss-cpu==1.8.0
+faiss-cpu
 numpy==1.26.4
 sentence-transformers==3.1.1
 langgraph==0.2.39
